@@ -2,22 +2,10 @@ import React from 'react'
 import Webcam from 'react-webcam'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useAspect, useVideoTexture } from '@react-three/drei'
-import {
-  Bloom,
-  DepthOfField,
-  EffectComposer,
-  Vignette,
-  Glitch,
-} from '@react-three/postprocessing'
-import {
-  BloomEffect,
-  VignetteEffect,
-  GlitchMode,
-  GlitchEffect,
-} from 'postprocessing'
+import { EffectComposer } from '@react-three/postprocessing'
 
 import { useInterval } from 'react-use'
-import { Vector2 } from 'three'
+import VfxColorize, { ColorizeEffect } from './vfx/VfxColorize'
 
 type AspectRatio = [number, number]
 
@@ -55,27 +43,19 @@ const Scene = ({ stream, aspect, isActive }: SceneProps) => {
 }
 
 const Vfx = () => {
-  const bloomRef = React.useRef<typeof BloomEffect>(null)
+  const colorizeRef = React.useRef<ColorizeEffect>(null)
 
   useFrame(() => {
-    if (bloomRef.current instanceof BloomEffect) {
-      bloomRef.current.intensity = Math.sin(Date.now() * 0.01)
+    if (colorizeRef.current) {
+      colorizeRef.current.r = Math.sin((Date.now() * 0.01) / 4) + 1
+      colorizeRef.current.g = Math.sin((Date.now() * 0.01) / 3) + 1
+      colorizeRef.current.b = Math.sin((Date.now() * 0.01) / 2) + 1
     }
   })
 
   return (
     <EffectComposer>
-      <Glitch
-        mode={GlitchMode.SPORADIC}
-        delay={new Vector2(0.1, 0.9)}
-        strength={new Vector2(0.8, 0.9)}
-      />
-      <Bloom
-        luminanceThreshold={0}
-        luminanceSmoothing={0.9}
-        height={300}
-        ref={bloomRef}
-      />
+      <VfxColorize ref={colorizeRef} />
     </EffectComposer>
   )
 }
@@ -99,7 +79,7 @@ const App = () => {
       setAspect([video.videoWidth, video.videoHeight])
       setIsActive(true)
     },
-    isActive ? null : 100
+    isActive ? null : 100 // Stop polling once active
   )
 
   return (
@@ -109,6 +89,7 @@ const App = () => {
         <Vfx />
       </Canvas>
       <Webcam
+        // Webcam is mounted but hidden so we can pass the stream to the scene
         className="hidden"
         ref={webcamRef}
         videoConstraints={VIDEO_CONSTRAINTS}
