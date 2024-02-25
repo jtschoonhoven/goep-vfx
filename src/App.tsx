@@ -1,7 +1,15 @@
 import React from 'react'
 import Webcam from 'react-webcam'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useFrame } from '@react-three/fiber'
 import { useAspect, useVideoTexture } from '@react-three/drei'
+import {
+  Bloom,
+  DepthOfField,
+  EffectComposer,
+  Vignette,
+} from '@react-three/postprocessing'
+import { BloomEffect, VignetteEffect } from 'postprocessing'
+
 import { useInterval } from 'react-use'
 
 type AspectRatio = [number, number]
@@ -39,6 +47,38 @@ const Scene = ({ stream, aspect, isActive }: SceneProps) => {
   )
 }
 
+const Vfx = () => {
+  const bloomRef = React.useRef<typeof BloomEffect>(null)
+  const vignetteRef = React.useRef<typeof VignetteEffect>(null)
+
+  useFrame(() => {
+    if (bloomRef.current instanceof BloomEffect) {
+      bloomRef.current.intensity = Math.sin(Date.now() * 0.01)
+    }
+    if (vignetteRef.current instanceof VignetteEffect) {
+      vignetteRef.current.offset = Math.sin(Date.now() * 0.01)
+    }
+  })
+
+  return (
+    <EffectComposer>
+      <DepthOfField
+        focusDistance={0}
+        focalLength={0.02}
+        bokehScale={2}
+        height={480}
+      />
+      <Bloom
+        luminanceThreshold={0}
+        luminanceSmoothing={0.9}
+        height={300}
+        ref={bloomRef}
+      />
+      <Vignette eskil={false} offset={0.1} darkness={1.1} ref={vignetteRef} />
+    </EffectComposer>
+  )
+}
+
 const App = () => {
   const webcamRef = React.useRef<Webcam>(null)
   const [stream, setStream] = React.useState<MediaStream | null>(null)
@@ -65,9 +105,10 @@ const App = () => {
     <div className="h-screen w-screen">
       <Canvas>
         <Scene stream={stream} aspect={aspect} isActive={isActive} />
+        <Vfx />
       </Canvas>
       <Webcam
-        style={{ display: 'none' }}
+        className="hidden"
         ref={webcamRef}
         videoConstraints={VIDEO_CONSTRAINTS}
         onUserMedia={setStream}
