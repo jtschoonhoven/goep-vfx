@@ -59,7 +59,7 @@ uniform vec3 weights;  // Variable received from javascript
 
 // Postprocessing expects a fragment shader named "mainImage"
 // https://github.com/pmndrs/postprocessing/wiki/Custom-Effects#shader-function-signatures
-void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
-	outputColor = vec4(inputColor.rgb * weights, inputColor.a);
+void mainImage(const in vec4 inputRGBA, const in vec2 uv, out vec4 outputRGBA) {
+	outputRGBA = vec4(inputRGBA.rgb * weights, inputRGBA.a);
 }
 `

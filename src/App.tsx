@@ -6,44 +6,21 @@ import { EffectComposer } from '@react-three/postprocessing'
 
 import { useInterval } from 'react-use'
 import VfxColorize, { ColorizeEffect } from './vfx/VfxColorize'
+import VfxChromaKey from './vfx/VfxChromaKey'
 
 type AspectRatio = [number, number]
 
 const VIDEO_CONSTRAINTS = { facingMode: 'user' }
 
-interface VideoProps {
-  stream: MediaStream
-}
-
-const VideoMaterial = ({ stream }: VideoProps) => {
-  const texture = useVideoTexture(stream)
-  return <meshBasicMaterial map={texture} toneMapped={false} />
-}
-
 interface SceneProps {
-  stream?: MediaStream | null
+  stream: MediaStream
   aspect: AspectRatio
-  isActive: boolean
 }
 
-const Scene = ({ stream, aspect, isActive }: SceneProps) => {
-  const size = useAspect(...aspect)
-
-  // Wait until active
-  if (!stream || !isActive) {
-    return <meshBasicMaterial wireframe />
-  }
-
-  return (
-    <mesh scale={size}>
-      <planeGeometry />
-      <VideoMaterial stream={stream} />
-    </mesh>
-  )
-}
-
-const Vfx = () => {
+const Scene: React.FC<SceneProps> = ({ stream, aspect }) => {
   const colorizeRef = React.useRef<ColorizeEffect>(null)
+  const size = useAspect(...aspect)
+  const videoTexture = useVideoTexture(stream)
 
   useFrame(() => {
     if (colorizeRef.current) {
@@ -54,9 +31,18 @@ const Vfx = () => {
   })
 
   return (
-    <EffectComposer>
-      <VfxColorize ref={colorizeRef} />
-    </EffectComposer>
+    <>
+      <mesh scale={size}>
+        <planeGeometry />
+        <meshBasicMaterial map={videoTexture} toneMapped={false} />
+      </mesh>
+
+      <EffectComposer>
+        <VfxColorize ref={colorizeRef} />
+        <VfxChromaKey keyRGB={[1.0, 0.0, 0.0]} similarity={0.2} />
+        <VfxChromaKey keyRGB={[0.0, 0.0, 1.0]} similarity={0.2} />
+      </EffectComposer>
+    </>
   )
 }
 
@@ -83,10 +69,9 @@ const App = () => {
   )
 
   return (
-    <div className="h-screen w-screen">
+    <div className="h-screen w-screen" style={{ backgroundColor: 'purple' }}>
       <Canvas>
-        <Scene stream={stream} aspect={aspect} isActive={isActive} />
-        <Vfx />
+        {stream && isActive ? <Scene stream={stream} aspect={aspect} /> : null}
       </Canvas>
       <Webcam
         // Webcam is mounted but hidden so we can pass the stream to the scene
