@@ -7,10 +7,17 @@ import {
   DepthOfField,
   EffectComposer,
   Vignette,
+  Glitch,
 } from '@react-three/postprocessing'
-import { BloomEffect, VignetteEffect } from 'postprocessing'
+import {
+  BloomEffect,
+  VignetteEffect,
+  GlitchMode,
+  GlitchEffect,
+} from 'postprocessing'
 
 import { useInterval } from 'react-use'
+import { Vector2 } from 'three'
 
 type AspectRatio = [number, number]
 
@@ -49,24 +56,19 @@ const Scene = ({ stream, aspect, isActive }: SceneProps) => {
 
 const Vfx = () => {
   const bloomRef = React.useRef<typeof BloomEffect>(null)
-  const vignetteRef = React.useRef<typeof VignetteEffect>(null)
 
   useFrame(() => {
     if (bloomRef.current instanceof BloomEffect) {
       bloomRef.current.intensity = Math.sin(Date.now() * 0.01)
     }
-    if (vignetteRef.current instanceof VignetteEffect) {
-      vignetteRef.current.offset = Math.sin(Date.now() * 0.01)
-    }
   })
 
   return (
     <EffectComposer>
-      <DepthOfField
-        focusDistance={0}
-        focalLength={0.02}
-        bokehScale={2}
-        height={480}
+      <Glitch
+        mode={GlitchMode.SPORADIC}
+        delay={new Vector2(0.1, 0.9)}
+        strength={new Vector2(0.8, 0.9)}
       />
       <Bloom
         luminanceThreshold={0}
@@ -74,7 +76,6 @@ const Vfx = () => {
         height={300}
         ref={bloomRef}
       />
-      <Vignette eskil={false} offset={0.1} darkness={1.1} ref={vignetteRef} />
     </EffectComposer>
   )
 }
