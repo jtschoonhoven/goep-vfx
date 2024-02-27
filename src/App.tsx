@@ -7,6 +7,8 @@ import { EffectComposer } from '@react-three/postprocessing'
 import { useInterval } from 'react-use'
 import VfxChromaKey from './vfx/VfxChromaKey'
 import VfxSobel, { SobelEffect } from './vfx/VfxSobel'
+import VfxContrast from './vfx/VfxContrast'
+import VfxBlur from './vfx/VfxBlur'
 
 type AspectRatio = [number, number]
 
@@ -41,6 +43,9 @@ const Scene: React.FC<SceneProps> = ({ stream, aspect }) => {
       </mesh>
 
       <EffectComposer>
+        <VfxBlur radius={7} />
+        <VfxContrast brightness={0.0} contrast={0.2} />
+        <VfxChromaKey keyRGB={[1.0, 1.0, 1.0]} similarity={0.1} />
         <VfxSobel
           weight={0.1}
           threshold={0.1}
@@ -49,8 +54,6 @@ const Scene: React.FC<SceneProps> = ({ stream, aspect }) => {
           useBackgroundRGBA={true}
           ref={sobeleRef}
         />
-        <VfxChromaKey keyRGB={[1.0, 0.0, 0.0]} similarity={0.2} />
-        <VfxChromaKey keyRGB={[0.0, 0.0, 1.0]} similarity={0.2} />
       </EffectComposer>
     </>
   )
