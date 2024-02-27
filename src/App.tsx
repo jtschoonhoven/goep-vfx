@@ -5,8 +5,8 @@ import { useAspect, useVideoTexture } from '@react-three/drei'
 import { EffectComposer } from '@react-three/postprocessing'
 
 import { useInterval } from 'react-use'
-import VfxColorize, { ColorizeEffect } from './vfx/VfxColorize'
 import VfxChromaKey from './vfx/VfxChromaKey'
+import VfxSobel, { SobelEffect } from './vfx/VfxSobel'
 
 type AspectRatio = [number, number]
 
@@ -18,15 +18,18 @@ interface SceneProps {
 }
 
 const Scene: React.FC<SceneProps> = ({ stream, aspect }) => {
-  const colorizeRef = React.useRef<ColorizeEffect>(null)
+  const sobeleRef = React.useRef<SobelEffect>(null)
   const size = useAspect(...aspect)
   const videoTexture = useVideoTexture(stream)
 
   useFrame(() => {
-    if (colorizeRef.current) {
-      colorizeRef.current.r = Math.sin((Date.now() * 0.01) / 4) + 1
-      colorizeRef.current.g = Math.sin((Date.now() * 0.01) / 3) + 1
-      colorizeRef.current.b = Math.sin((Date.now() * 0.01) / 2) + 1
+    if (sobeleRef.current) {
+      sobeleRef.current.edgeRGBA = [
+        Math.sin(Date.now() * 0.0011) + 1.2,
+        Math.cos(Date.now() * 0.0012) + 1.2,
+        Math.sin(Date.now() * 0.0013) + 1.2,
+        1,
+      ]
     }
   })
 
@@ -38,7 +41,14 @@ const Scene: React.FC<SceneProps> = ({ stream, aspect }) => {
       </mesh>
 
       <EffectComposer>
-        <VfxColorize ref={colorizeRef} />
+        <VfxSobel
+          weight={0.1}
+          threshold={0.1}
+          intensity={0.1}
+          useEdgeRGBA={true}
+          useBackgroundRGBA={true}
+          ref={sobeleRef}
+        />
         <VfxChromaKey keyRGB={[1.0, 0.0, 0.0]} similarity={0.2} />
         <VfxChromaKey keyRGB={[0.0, 0.0, 1.0]} similarity={0.2} />
       </EffectComposer>
