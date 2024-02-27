@@ -69,7 +69,13 @@ const App = () => {
   )
 
   return (
-    <div className="h-screen w-screen" style={{ backgroundColor: 'purple' }}>
+    <div
+      className="h-screen w-screen"
+      style={{
+        background:
+          'repeating-conic-gradient(#808080 0% 25%, transparent 0% 50%) 50% / 20px 20px',
+      }}
+    >
       <Canvas>
         {stream && isActive ? <Scene stream={stream} aspect={aspect} /> : null}
       </Canvas>
