@@ -9,6 +9,7 @@ import VfxChromaKey from './vfx/VfxChromaKey'
 import VfxSobel, { SobelEffect } from './vfx/VfxSobel'
 import VfxContrast from './vfx/VfxContrast'
 import VfxBlur from './vfx/VfxBlur'
+import midi from './utils/midi'
 
 type AspectRatio = [number, number]
 
@@ -64,6 +65,12 @@ const App = () => {
   const [stream, setStream] = React.useState<MediaStream | null>(null)
   const [aspect, setAspect] = React.useState<AspectRatio>([16, 9])
   const [isActive, setIsActive] = React.useState(false)
+
+  const { midiError } = midi.useMidi({ defaultChannel: 0 })
+  midiError && console.error(midiError)
+
+  // useInterval(() => midiCc({ code: 126 }), 400)
+  // useInterval(() => midiCc({ code: 127 }), 400)
 
   // The only way to know when the stream is ready is to poll
   useInterval(
