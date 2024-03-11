@@ -24,13 +24,19 @@ const Scene: React.FC<SceneProps> = ({ stream, aspect }) => {
   const sobeleRef = React.useRef<SobelEffect>(null)
   const size = useAspect(...aspect)
   const videoTexture = useVideoTexture(stream)
+  const { midiPosition } = midi.useMidi({ defaultChannel: 0 })
+  const isOffBeat = midiPosition % 8 >= 4
+
+  React.useEffect(() => {
+    console.log(isOffBeat, midiPosition)
+  }, [isOffBeat])
 
   useFrame(() => {
     if (sobeleRef.current) {
       sobeleRef.current.edgeRGBA = [
-        Math.sin(Date.now() * 0.0011) + 1.2,
-        Math.cos(Date.now() * 0.0012) + 1.2,
-        Math.sin(Date.now() * 0.0013) + 1.2,
+        Math.sin(Date.now() * 0.0011) + 1.2 * (isOffBeat ? 1 : 0),
+        Math.cos(Date.now() * 0.0012) + 1.2 * (isOffBeat ? 1 : 0),
+        Math.sin(Date.now() * 0.0013) + 1.2 * (isOffBeat ? 1 : 0),
         1,
       ]
     }
@@ -45,7 +51,7 @@ const Scene: React.FC<SceneProps> = ({ stream, aspect }) => {
 
       <EffectComposer>
         <VfxBlur radius={7} />
-        <VfxContrast brightness={0.0} contrast={0.2} />
+        <VfxContrast brightness={0} contrast={0.2} />
         <VfxChromaKey keyRGB={[1.0, 1.0, 1.0]} similarity={0.1} />
         <VfxSobel
           weight={0.1}
@@ -65,12 +71,6 @@ const App = () => {
   const [stream, setStream] = React.useState<MediaStream | null>(null)
   const [aspect, setAspect] = React.useState<AspectRatio>([16, 9])
   const [isActive, setIsActive] = React.useState(false)
-
-  const { midiError } = midi.useMidi({ defaultChannel: 0 })
-  midiError && console.error(midiError)
-
-  // useInterval(() => midiCc({ code: 126 }), 400)
-  // useInterval(() => midiCc({ code: 127 }), 400)
 
   // The only way to know when the stream is ready is to poll
   useInterval(

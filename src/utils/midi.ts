@@ -27,6 +27,14 @@ const NOTE_TO_MIDI_CODE = {
 
 type Note = keyof typeof NOTE_TO_MIDI_CODE
 
+const MIDI_CODE_NAME: Record<number, string> = {
+  0xf2: 'SONG_POSITION_POINTER',
+  0xf8: 'TIMING_CLOCK',
+  0xfa: 'START',
+  0xfb: 'CONTINUE',
+  0xfc: 'STOP',
+}
+
 interface MidiCcProps {
   code: number
   value?: number
@@ -99,7 +107,8 @@ const midiNoteOff = (
 
 type UseMidi = (args?: { defaultChannel?: number }) => {
   midiError: string
-  isMidiLoading: boolean
+  isMidiActive: boolean
+  midiPosition: number
   midiCc: (args: MidiCcProps) => void
   midiNoteOn: (args: MidiNoteOnProps) => void
   midiNoteOff: (args: MidiNoteOffProps) => void
@@ -111,7 +120,10 @@ type UseMidi = (args?: { defaultChannel?: number }) => {
 export const useMidi: UseMidi = ({ defaultChannel } = {}) => {
   const [midi, setMidi] = React.useState<MIDIAccess | null>(null)
   const [midiError, setMidiError] = React.useState('')
-  const [isMidiLoading, setIsMidiLoading] = React.useState(true)
+  const [inputIds, setInputIds] = React.useState<Set<string>>(new Set())
+  const [outputIds, setOutputIds] = React.useState<Set<string>>(new Set())
+  const [midiPosition, setMidiPosition] = React.useState<number>(0) // Offset from song start in 16th notes
+  const isMidiActive = Boolean(midi && (inputIds.size || outputIds.size))
 
   // Ensure we have access to the MIDI API
   React.useEffect(() => {
@@ -120,10 +132,67 @@ export const useMidi: UseMidi = ({ defaultChannel } = {}) => {
         .requestMIDIAccess({ sysex: true, software: true })
         .then(setMidi, setMidiError)
         .catch(setMidiError)
-    } else {
-      setIsMidiLoading(false)
     }
   }, [])
+
+  // Attach `onMidiMessage` event handler to all inputs
+  React.useEffect(() => {
+    if (midi) {
+      inputIds.forEach((inputId) => {
+        const input = midi.inputs.get(inputId)
+
+        if (input && input.onmidimessage === null) {
+          let numClockTicks = 0
+
+          input.onmidimessage = (event) => {
+            if ('data' in event && event.data instanceof Uint8Array) {
+              const [code, ...restBytes] = event.data
+              const codeName = MIDI_CODE_NAME[code]
+
+              if (codeName === 'SONG_POSITION_POINTER') {
+                // Song position is sent as a 14-bit value
+                numClockTicks = 0 // Reset clock ticks whenever the playhead is updated
+                const [lsb, msb] = restBytes
+                const position = (msb << 7) | lsb
+                setMidiPosition(position)
+              }
+
+              if (codeName === 'TIMING_CLOCK') {
+                // Timing clock ticks 24 times per quarter note (6 times per 16th note)
+                numClockTicks++
+                if (numClockTicks % 6 === 0) {
+                  setMidiPosition((position) => position + 1)
+                }
+              }
+            }
+          }
+        }
+      })
+    }
+  }, [inputIds])
+
+  // Poll for active MIDI input and output IDs
+  useInterval(
+    () => {
+      const newInputIds: Set<string> = new Set()
+      const newOutputIds: Set<string> = new Set()
+      if (midi) {
+        for (let input of midi.inputs.values()) {
+          newInputIds.add(input.id)
+        }
+        for (let output of midi.outputs.values()) {
+          newOutputIds.add(output.id)
+        }
+        if (newInputIds !== inputIds) {
+          setInputIds(newInputIds)
+        }
+        if (newOutputIds !== outputIds) {
+          setOutputIds(newOutputIds)
+        }
+      }
+    },
+    !midi ? null : !inputIds.size || !outputIds.size ? 250 : 1000
+  )
 
   // Poll for MIDI access permission
   useInterval(
@@ -146,10 +215,11 @@ export const useMidi: UseMidi = ({ defaultChannel } = {}) => {
   )
 
   // Return loading state if MIDI is not available
-  if (!midi) {
+  if (!midi || !isMidiActive) {
     return {
       midiError,
-      isMidiLoading,
+      isMidiActive,
+      midiPosition,
       midiCc: () => {},
       midiNoteOn: () => {},
       midiNoteOff: () => {},
@@ -158,7 +228,8 @@ export const useMidi: UseMidi = ({ defaultChannel } = {}) => {
 
   return {
     midiError,
-    isMidiLoading,
+    isMidiActive,
+    midiPosition,
     midiCc: ({ code, value, channel = defaultChannel }: MidiCcProps) =>
       midiCc(midi, { code, value, channel }),
     midiNoteOn: ({
@@ -183,6 +254,9 @@ const sendBytes = (midi: MIDIAccess, bytes: number[]): void => {
   }
 }
 
+/**
+ * Convert a note string ("F", "C#", "Gb", etc) plus an octave number to a MIDI note number (0-127).
+ */
 const getMidiNote = (note: Note, octave: number): number => {
   const noteNumber = NOTE_TO_MIDI_CODE[note]
   const octaveOffset = (octave + 1) * 12
